@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAV → HSV 내륙운송 L/T 분석 보고 | 부품기획팀</title>
+<style>
+  :root{
+    --pt:#C10933;
+    --pt-soft:#F6E3E8;
+    --pt-line:#EBC7D0;
+    --ink:#1A1A1A;
+    --ink2:#5C5C5C;
+    --ink3:#9E9E9E;
+    --line:#E6E6E6;
+    --blue:#1A4F8A;
+    --amber:#B45309;
+    --green:#1A7340;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{
+    background:#F2F2F2;
+    font-family:"Malgun Gothic","맑은 고딕","Apple SD Gothic Neo",
+                "Noto Sans KR",-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;
+    color:var(--ink);
+    overflow:hidden;
+    display:flex;align-items:center;justify-content:center;
+  }
+  #viewport{position:relative;width:100vw;height:100vh;overflow:hidden;}
+  #stage{
+    position:absolute;top:50%;left:50%;
+    width:1280px;height:720px;
+    transform-origin:center center;
+    background:#FFFFFF;
+    box-shadow:0 10px 40px rgba(0,0,0,.18);
+  }
+  .slide{
+    position:absolute;inset:0;
+    padding:34px 46px 46px 46px;
+    opacity:0;visibility:hidden;
+    transition:opacity .28s ease;
+    display:flex;flex-direction:column;
+  }
+  .slide.active{opacity:1;visibility:visible;}
+
+  /* ---------- header ---------- */
+  .hd{border-bottom:2px solid var(--pt);padding-bottom:9px;margin-bottom:16px;
+      display:flex;align-items:flex-end;justify-content:space-between;flex:0 0 auto;}
+  .hd h1{font-size:25px;font-weight:700;letter-spacing:-.5px;}
+  .hd h1 .sub{color:var(--pt);}
+  .hd .meta{font-size:11.5px;color:var(--ink3);padding-bottom:3px;letter-spacing:.2px;}
+  .eyebrow{font-size:10.5px;letter-spacing:2.4px;color:var(--pt);font-weight:700;margin-bottom:5px;}
+
+  .body{flex:1 1 auto;min-height:0;}
+  .cols{display:grid;gap:18px;height:100%;}
+  .c-2{grid-template-columns:1fr 1fr;}
+  .c-2a{grid-template-columns:1.35fr 1fr;}
+  .c-2b{grid-template-columns:1fr 1.25fr;}
+  .c-3{grid-template-columns:repeat(3,1fr);}
+  .c-4{grid-template-columns:repeat(4,1fr);}
+  .stack{display:flex;flex-direction:column;gap:14px;min-height:0;}
+
+  .sec-t{font-size:13px;font-weight:700;color:var(--pt);margin-bottom:8px;
+         display:flex;align-items:center;gap:7px;}
+  .sec-t::before{content:"";width:4px;height:13px;background:var(--pt);border-radius:1px;}
+
+  .panel{border:1px solid var(--line);border-radius:6px;padding:14px 16px;background:#fff;
+         display:flex;flex-direction:column;min-height:0;}
+  .panel.fill{flex:1 1 auto;}
+
+  /* ---------- KPI cards ---------- */
+  .kpis{display:grid;gap:11px;}
+  .kpi{border:1px solid var(--line);border-top:3px solid var(--pt);border-radius:5px;
+       padding:11px 13px;background:#fff;}
+  .kpi .lb{font-size:10.5px;color:var(--ink2);margin-bottom:5px;letter-spacing:-.2px;}
+  .kpi .vl{font-size:29px;font-weight:700;line-height:1;color:var(--pt);letter-spacing:-1px;}
+  .kpi .vl small{font-size:13px;font-weight:600;margin-left:2px;}
+  .kpi .nt{font-size:10px;color:var(--ink3);margin-top:5px;}
+  .kpi.blue{border-top-color:var(--blue);} .kpi.blue .vl{color:var(--blue);}
+  .kpi.dark{border-top-color:#4A4A4A;} .kpi.dark .vl{color:var(--ink);}
+  .kpi.green{border-top-color:var(--green);} .kpi.green .vl{color:var(--green);}
+  .kpi.amber{border-top-color:var(--amber);} .kpi.amber .vl{color:var(--amber);}
+
+  /* ---------- tables ---------- */
+  table{width:100%;border-collapse:collapse;font-size:11.5px;}
+  thead th{background:var(--pt);color:#fff;font-weight:700;padding:7px 9px;text-align:left;
+           font-size:11px;letter-spacing:-.2px;}
+  tbody td{padding:6.5px 9px;border-bottom:1px solid var(--line);color:var(--ink2);}
+  tbody tr:nth-child(even){background:#FAFAFA;}
+  tbody td:first-child{color:var(--ink);font-weight:600;}
+  td.n{text-align:center;}
+  .up{color:var(--pt);font-weight:700;}
+  .dn{color:var(--green);font-weight:700;}
+  .wr{color:var(--amber);font-weight:700;}
+  tr.hi td{background:var(--pt-soft)!important;}
+
+  /* ---------- factor cards ---------- */
+  .fc{border:1px solid var(--line);border-left:4px solid var(--pt);border-radius:5px;
+      padding:12px 14px;background:#FCFCFC;display:flex;flex-direction:column;gap:7px;}
+  .fc.b{border-left-color:var(--amber);} .fc.c{border-left-color:var(--blue);}
+  .fc.d{border-left-color:var(--ink3);}
+  .fc .ti{font-size:13px;font-weight:700;color:var(--pt);display:flex;align-items:center;gap:8px;}
+  .fc.b .ti{color:var(--amber);} .fc.c .ti{color:var(--blue);} .fc.d .ti{color:var(--ink2);}
+  .fc .num{display:inline-flex;align-items:center;justify-content:center;
+           width:20px;height:20px;border-radius:50%;background:var(--pt);color:#fff;
+           font-size:11px;font-weight:700;flex:0 0 auto;}
+  .fc.b .num{background:var(--amber);} .fc.c .num{background:var(--blue);} .fc.d .num{background:var(--ink3);}
+  ul.bl{list-style:none;display:flex;flex-direction:column;gap:4px;}
+  ul.bl li{font-size:11px;color:var(--ink2);line-height:1.5;padding-left:11px;position:relative;letter-spacing:-.2px;}
+  ul.bl li::before{content:"–";position:absolute;left:0;color:var(--ink3);}
+  ul.bl li b{color:var(--pt);font-weight:700;}
+
+  /* ---------- request list ---------- */
+  .rq{display:flex;gap:11px;align-items:flex-start;padding:9px 0;border-bottom:1px dashed var(--line);}
+  .rq:last-child{border-bottom:none;}
+  .tag{flex:0 0 auto;background:var(--pt);color:#fff;font-size:9.5px;font-weight:700;
+       padding:3.5px 8px;border-radius:3px;letter-spacing:.3px;margin-top:1px;min-width:48px;text-align:center;}
+  .tag.w{background:#8A8A8A;}
+  .rq .ct .h{font-size:12px;font-weight:700;color:var(--ink);margin-bottom:4px;}
+
+  /* ---------- timeline ---------- */
+  .tl{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;}
+  .tl .st{border-radius:5px;overflow:hidden;border:1px solid var(--line);
+          display:flex;flex-direction:column;}
+  .tl .st .hh{background:var(--pt);color:#fff;padding:8px 11px;}
+  .tl .st:nth-child(2) .hh{background:#D64B6B;}
+  .tl .st:nth-child(3) .hh{background:var(--blue);}
+  .tl .st:nth-child(4) .hh{background:var(--green);}
+  .tl .st .hh .a{font-size:12.5px;font-weight:700;}
+  .tl .st .hh .b{font-size:10px;opacity:.85;}
+  .tl .st .bb{padding:10px 11px;display:flex;flex-direction:column;gap:5px;flex:1;}
+  .tl .st .bb div{font-size:10.5px;color:var(--ink2);line-height:1.45;letter-spacing:-.3px;}
+
+  /* ---------- effect ---------- */
+  .ef{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
+  .ef .e{border:1px solid var(--line);border-radius:5px;padding:10px;text-align:center;background:#FCFCFC;}
+  .ef .e .k{font-size:10px;color:var(--ink2);margin-bottom:6px;}
+  .ef .e .p{font-size:15px;font-weight:700;color:var(--pt);}
+  .ef .e .ar{font-size:12px;color:var(--ink3);margin:2px 0;}
+  .ef .e .q{font-size:15px;font-weight:700;color:var(--green);}
+
+  .concl{background:var(--pt-soft);border-left:4px solid var(--pt);border-radius:4px;
+         padding:13px 16px;font-size:11.5px;color:var(--ink);line-height:1.65;letter-spacing:-.2px;}
+  .concl b{color:var(--pt);}
+
+  /* ---------- cover ---------- */
+  .cover{padding:0;justify-content:center;}
+  .cover .in{padding:0 76px;}
+  .cover .bar{width:64px;height:5px;background:var(--pt);margin-bottom:22px;}
+  .cover h1{font-size:46px;font-weight:700;letter-spacing:-1.6px;line-height:1.2;}
+  .cover h1 em{font-style:normal;color:var(--pt);}
+  .cover .p{font-size:15px;color:var(--ink2);margin-top:14px;letter-spacing:-.3px;}
+  .cover .facts{display:grid;grid-template-columns:repeat(5,1fr);gap:0;margin-top:34px;
+                border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
+  .cover .facts div{padding:15px 14px 15px 0;}
+  .cover .facts div+div{padding-left:18px;border-left:1px solid var(--line);}
+  .cover .facts .k{font-size:10px;color:var(--ink3);letter-spacing:1px;margin-bottom:6px;}
+  .cover .facts .v{font-size:13px;font-weight:700;color:var(--ink);letter-spacing:-.3px;}
+  .cover .foot{margin-top:26px;font-size:11.5px;color:var(--ink3);}
+
+  /* ---------- legend / chart ---------- */
+  .lg{display:flex;gap:14px;justify-content:center;margin-top:6px;}
+  .lg span{font-size:10.5px;color:var(--ink2);display:flex;align-items:center;gap:5px;}
+  .lg i{width:11px;height:3px;border-radius:2px;display:inline-block;}
+  .chart{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;}
+  .chart svg{width:100%;height:100%;display:block;}
+
+  .note{font-size:10px;color:var(--ink3);margin-top:7px;letter-spacing:-.2px;}
+
+  /* ---------- chrome ---------- */
+  #bar{position:absolute;left:0;bottom:0;height:3px;background:var(--pt);width:0;
+       transition:width .3s ease;z-index:5;}
+  .pg{position:absolute;right:46px;bottom:16px;font-size:10.5px;color:var(--ink3);letter-spacing:1px;}
+  .brand{position:absolute;left:46px;bottom:16px;font-size:9.5px;color:#CFCFCF;letter-spacing:1.5px;}
+  #nav{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+       display:flex;gap:8px;align-items:center;z-index:20;
+       background:rgba(255,255,255,.94);border:1px solid #DDD;border-radius:30px;
+       padding:6px 12px;box-shadow:0 3px 14px rgba(0,0,0,.12);}
+  #nav button{border:none;background:var(--pt);color:#fff;width:26px;height:26px;
+              border-radius:50%;cursor:pointer;font-size:13px;line-height:1;}
+  #nav button:disabled{background:#DDD;cursor:default;}
+  #nav .ct{font-size:11.5px;color:var(--ink2);min-width:52px;text-align:center;font-variant-numeric:tabular-nums;}
+  #hint{position:fixed;top:14px;right:16px;font-size:10.5px;color:#AAA;z-index:20;}
+  @media print{#nav,#hint{display:none;}}
+</style>
+</head>
+<body>
+<div id="viewport">
+  <div id="stage">
+
+  <!-- ================= 1 : COVER ================= -->
+  <section class="slide cover active">
+    <div class="in">
+      <div class="bar"></div>
+      <h1>SAV → HSV 내륙운송<br><em>L/T 분석 보고</em></h1>
+      <div class="p">Savannah Port ATA → Huntsville(HSV) FDEST 입고 구간 리드타임 진단 및 개선 방안</div>
+      <div class="facts">
+        <div><div class="k">대상</div><div class="v">FCL SAV<br>TL Mode</div></div>
+        <div><div class="k">분석 기간</div><div class="v">2025.02 ~ 2026.07<br>(18개월)</div></div>
+        <div><div class="k">분석 건수</div><div class="v">1,121건<br>(DELIVERED 기준)</div></div>
+        <div><div class="k">내륙 CARRIER</div><div class="v">FNS<br>(Single Vendor)</div></div>
+        <div><div class="k">총 INLAND L/T</div><div class="v">평균 9.97일<br>(목표 ≤ 10일)</div></div>
+      </div>
+      <div class="foot">부품기획팀 &nbsp;|&nbsp; 2026.07 &nbsp;|&nbsp; LGE Internal Use Only</div>
+    </div>
+    <div class="pg">01 / 08</div>
+    <div id="bar"></div>
+  </section>
+
+  <!-- ================= 2 : 현황 요약 ================= -->
+  <section class="slide">
+    <div class="hd">
+      <div><div class="eyebrow">OVERVIEW</div><h1>구간 L/T 현황 <span class="sub">요약</span></h1></div>
+      <div class="meta">부품기획팀 | 2026.07</div>
+    </div>
+    <div class="body">
+      <div class="kpis" style="grid-template-columns:repeat(5,1fr);margin-bottom:16px;">
+        <div class="kpi blue"><div class="lb">Port→Drayage 평균 L/T</div><div class="vl">3.8<small>일</small></div><div class="nt">CV 44.6%</div></div>
+        <div class="kpi"><div class="lb">FNS TL L/T 전체 평균</div><div class="vl">4.8<small>일</small></div><div class="nt">CV 97.2% · 핵심 병목</div></div>
+        <div class="kpi blue"><div class="lb">T/L→Delivery 평균</div><div class="vl">1.3<small>일</small></div><div class="nt">SAV→HSV ≈ 330mi</div></div>
+        <div class="kpi dark"><div class="lb">총 Inland L/T 평균</div><div class="vl">9.97<small>일</small></div><div class="nt">Max 34일 · 목표 ≤10일</div></div>
+        <div class="kpi"><div class="lb">2026.05~06 TL L/T</div><div class="vl">12.9<small>일</small></div><div class="nt">이상 급등 구간</div></div>
+      </div>
+      <div class="cols c-2a" style="height:calc(100% - 116px);">
+        <div class="panel fill">
+          <div class="sec-t">월별 TL L/T 추이 (2025.02 ~ 2026.07)</div>
+          <div class="chart" id="ch-line"></div>
+          <div class="lg">
+            <span><i style="background:#C10933"></i>TL L/T (FNS 대기)</span>
+            <span><i style="background:#1A4F8A"></i>Port→Drayage L/T</span>
+          </div>
+        </div>
+        <div class="panel fill">
+          <div class="sec-t">기간별 TL L/T 요약</div>
+          <table>
+            <thead><tr><th>기간</th><th class="n">평균</th><th class="n">Max</th><th class="n">이상비율</th></tr></thead>
+            <tbody>
+              <tr><td>2025.02–03</td><td class="n">2~3일</td><td class="n">6일</td><td class="n">0%</td></tr>
+              <tr><td>2025.04–12</td><td class="n">2~4일</td><td class="n">12일</td><td class="n">0~4%</td></tr>
+              <tr><td>2026.01–03</td><td class="n">2~3일</td><td class="n">5일</td><td class="n">0%</td></tr>
+              <tr class="hi"><td>2026.04 ▲</td><td class="n up">6.2일</td><td class="n up">14일</td><td class="n up">10%</td></tr>
+              <tr class="hi"><td>2026.05 ▲▲</td><td class="n up">14.8일</td><td class="n up">27일</td><td class="n up">86%</td></tr>
+              <tr class="hi"><td>2026.06 ▲</td><td class="n up">11.0일</td><td class="n up">18일</td><td class="n up">51%</td></tr>
+              <tr><td>2026.07 ▼</td><td class="n dn">2.6일</td><td class="n dn">5일</td><td class="n dn">0%</td></tr>
+            </tbody>
+          </table>
+          <div class="note">※ 이상비율 = TL L/T 10일 초과 건 비중</div>
+        </div>
+      </div>
+    </div>
+    <div class="brand">LGE INTERNAL USE ONLY</div><div class="pg">02 / 08</div>
+  </section>
+
+  <!-- ================= 3 : 구간별 분해 ================= -->
+  <section class="slide">
+    <div class="hd">
+      <div><div class="eyebrow">SEGMENT BREAKDOWN</div><h1>구간별 L/T 분해 및 <span class="sub">불안정성 비교</span></h1></div>
+      <div class="meta">부품기획팀 | 2026.07</div>
+    </div>
+    <div class="body">
+      <div class="cols c-2">
+        <div class="panel fill">
+          <div class="sec-t">구간별 L/T 기여도 (월별 누적, 일)</div>
+          <div class="chart" id="ch-stack"></div>
+          <div class="lg">
+            <span><i style="background:#1A4F8A"></i>Port→Drayage</span>
+            <span><i style="background:#C10933"></i>FNS TL L/T</span>
+            <span><i style="background:#E8A9B8"></i>T/L→Delivery</span>
+          </div>
+        </div>
+        <div class="stack">
+          <div class="panel">
+            <div class="sec-t">구간별 변동계수(CV%) — 불안정성 비교</div>
+            <table>
+              <thead><tr><th>구간</th><th class="n">현재 CV%</th><th>평가</th><th class="n">우선순위</th></tr></thead>
+              <tbody>
+                <tr><td>Discharge L/T</td><td class="n">165.1%</td><td>단기 체선·통관 영향</td><td class="n">3순위</td></tr>
+                <tr><td>Port→Drayage</td><td class="n">44.6%</td><td>항만 혼잡 연동</td><td class="n">2순위</td></tr>
+                <tr class="hi"><td>FNS TL L/T</td><td class="n up">97.2%</td><td><b>핵심 병목</b></td><td class="n up">1순위</td></tr>
+                <tr><td>T/L→Delivery</td><td class="n">62.8%</td><td>드라이버 가용성</td><td class="n">4순위</td></tr>
+                <tr><td>총 Inland L/T</td><td class="n">53.9%</td><td>종합 변동</td><td class="n">—</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="panel fill">
+            <div class="sec-t">진단 요지</div>
+            <ul class="bl" style="gap:7px;">
+              <li>Discharge CV가 가장 높으나 절대 소요일이 짧아 총 L/T 영향은 제한적이며, <b>FNS TL 구간이 절대값·변동성 모두 최상위</b>인 유일한 구간</li>
+              <li>Port→Drayage(3.84일)는 Savannah GPA 혼잡이라는 <b>외생 변수</b>로 통제 여지가 제한적</li>
+              <li>T/L→Delivery는 1.3일로 안정적 — <b>운송 거리(≈330mi) 자체는 문제가 아님</b></li>
+              <li>결론: 총 Inland L/T 9.97일 중 개선 여지가 가장 큰 지점은 <b>Drayage 완료 후 트럭 배차 대기 시간</b></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="brand">LGE INTERNAL USE ONLY</div><div class="pg">03 / 08</div>
+  </section>
+
+  <!-- ================= 4 : 변동 요인 ================= -->
+  <section class="slide">
+    <div class="hd">
+      <div><div class="eyebrow">ROOT CAUSE</div><h1>L/T 변동 <span class="sub">핵심 요인 4</span></h1></div>
+      <div class="meta">부품기획팀 | 2026.07</div>
+    </div>
+    <div class="body">
+      <div class="cols c-2" style="grid-template-rows:1fr 1fr;">
+        <div class="fc">
+          <div class="ti"><span class="num">1</span>FNS 배차 수 제한 <span style="font-size:10px;background:var(--pt);color:#fff;padding:2px 7px;border-radius:10px;">최대 원인</span></div>
+          <ul class="bl">
+            <li>2026.05 TL L/T <b>14.8일</b> → Drayage 완료 후 트럭 미배차 대기 장기화</li>
+            <li>동일 T/L 날짜 최대 13대 → 초과분 다음 주로 이월 (주 1~2회 배차)</li>
+            <li>2026.07 즉시 <b>2.6일</b>로 정상화 → AI 창고담당자 협의(입고량 통제) 후 배차 제한 정황</li>
+          </ul>
+        </div>
+        <div class="fc b">
+          <div class="ti"><span class="num">2</span>Port 체류 증가 <span style="font-size:10px;background:var(--amber);color:#fff;padding:2px 7px;border-radius:10px;">선행 지표</span></div>
+          <ul class="bl">
+            <li>Port→Drayage 평균 3.84일, CV 44.6% → Savannah GPA 물량 급증과 연동</li>
+            <li>Port 체류↑ → Drayage 지연 → FNS T/L 큐 누적으로 <b>연쇄 악화</b></li>
+            <li>내부 통제 불가 요인으로, 조기 경보 지표로 활용 필요</li>
+          </ul>
+        </div>
+        <div class="fc c">
+          <div class="ti"><span class="num">3</span>요일 집중 배치 패턴</div>
+          <ul class="bl">
+            <li>Drayage 집중: 화 256건 &gt; 수 244건 &gt; 월 212건</li>
+            <li>금요일 배차 회피(144건) → <b>목~월 대기 가산</b></li>
+            <li>주초 집중 → 수·목 T/L 처리 → FNS 처리 한도 초과 유발</li>
+          </ul>
+        </div>
+        <div class="fc d">
+          <div class="ti"><span class="num">4</span>유가 인상 연계 배차 압박</div>
+          <ul class="bl">
+            <li>계약 外 Surcharge 청구 요구 → 지불 거절 시 <b>배차 우선순위 조정 수단화</b></li>
+            <li>Thai 출발 화물 TL 6.5일, China 5.1일로 상대적 고위험</li>
+            <li>Fuel Clause 부재가 협상 레버리지 상실로 직결</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="brand">LGE INTERNAL USE ONLY</div><div class="pg">04 / 08</div>
+  </section>
+
+  <!-- ================= 5 : 급등 심층 분석 ================= -->
+  <section class="slide">
+    <div class="hd">
+      <div><div class="eyebrow">DEEP DIVE</div><h1>2026년 이상 급등 구간 <span class="sub">심층 분석 (4~6월)</span></h1></div>
+      <div class="meta">부품기획팀 | 2026.07</div>
+    </div>
+    <div class="body">
+      <div class="kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px;">
+        <div class="kpi amber"><div class="lb">2026.04 평균 TL L/T</div><div class="vl">6.2<small>일</small></div><div class="nt">+58% vs 정상</div></div>
+        <div class="kpi"><div class="lb">2026.05 평균 TL L/T</div><div class="vl">14.8<small>일</small></div><div class="nt">최대 27일 기록</div></div>
+        <div class="kpi"><div class="lb">2026.06 평균 TL L/T</div><div class="vl">11.0<small>일</small></div><div class="nt">TL&gt;10일 비율 51%</div></div>
+        <div class="kpi green"><div class="lb">2026.07 회복</div><div class="vl">2.6<small>일</small></div><div class="nt">정상 수준 즉시 복귀</div></div>
+      </div>
+      <div class="cols c-2b" style="height:calc(100% - 108px);">
+        <div class="panel fill">
+          <div class="sec-t">배차 요일 패턴 (Drayage 건수)</div>
+          <div class="chart" id="ch-dow"></div>
+          <div class="note">※ 주초 집중 · 금요일 회피 → 목~월 대기일 가산 구조</div>
+        </div>
+        <div class="panel fill">
+          <div class="sec-t">지연 유형 분류 (2026.05~06, 199건)</div>
+          <table>
+            <thead><tr><th>지연 범위</th><th class="n">건수</th><th>진단</th></tr></thead>
+            <tbody>
+              <tr><td>TL = 0일</td><td class="n">6건</td><td>직접 배차 거부 / FNS 내부 배정 실패</td></tr>
+              <tr><td>1~6일 (정상)</td><td class="n">30건</td><td>FNS 잔여 배차로 처리된 물량</td></tr>
+              <tr><td class="wr">7~10일 (경계)</td><td class="n wr">34건</td><td>배차 한도 도달 후 다음 사이클 대기</td></tr>
+              <tr class="hi"><td class="up">11~15일 (심각)</td><td class="n up">86건</td><td><b>2~3주 사이클 대기 — 43% 점유</b></td></tr>
+              <tr class="hi"><td class="up">16~27일 (극심)</td><td class="n up">43건</td><td><b>3~4주 이상 대기 — 22% 점유</b></td></tr>
+            </tbody>
+          </table>
+          <div class="concl" style="margin-top:12px;padding:11px 14px;font-size:11px;">
+            11일 이상 지연이 <b>129건(65%)</b> — 단발성 사고가 아닌 <b>주 단위 배차 사이클 이월</b>이 구조적으로 반복된 결과
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="brand">LGE INTERNAL USE ONLY</div><div class="pg">05 / 08</div>
+  </section>
+
+  <!-- ================= 6 : KPI ================= -->
+  <section class="slide">
+    <div class="hd">
+      <div><div class="eyebrow">KPI TARGET</div><h1>핵심 관리 KPI <span class="sub">목표 수준 (SAV TL 구간)</span></h1></div>
+      <div class="meta">부품기획팀 | 2026.07</div>
+    </div>
+    <div class="body" style="display:flex;flex-direction:column;">
+      <div class="panel" style="flex:1 1 auto;">
+        <table style="font-size:12px;">
+          <thead><tr>
+            <th style="width:22%">KPI 지표</th><th class="n">현재 실적</th>
+            <th class="n">단기 목표 (3개월)</th><th class="n">중기 목표 (6개월)</th><th class="n">업계 기준</th>
+          </tr></thead>
+          <tbody>
+            <tr><td>Port→Drayage L/T</td><td class="n">3.8일 평균</td><td class="n" style="color:var(--blue);font-weight:700">≤ 3일</td><td class="n" style="color:var(--blue);font-weight:700">≤ 2일</td><td class="n">2~3일</td></tr>
+            <tr class="hi"><td>FNS TL L/T (Drayage→T/L)</td><td class="n up">4.8일 평균 / Max 27일</td><td class="n" style="color:var(--blue);font-weight:700">≤ 5일</td><td class="n" style="color:var(--blue);font-weight:700">≤ 3일</td><td class="n">2~4일</td></tr>
+            <tr class="hi"><td>총 Inland L/T (ATA→Delivery)</td><td class="n up">9.97일 평균 / Max 34일</td><td class="n" style="color:var(--blue);font-weight:700">≤ 10일</td><td class="n" style="color:var(--blue);font-weight:700">≤ 7일</td><td class="n">7~10일</td></tr>
+            <tr><td>FNS 배차 OTR</td><td class="n">미측정</td><td class="n" style="color:var(--blue);font-weight:700">≥ 85%</td><td class="n" style="color:var(--blue);font-weight:700">≥ 95%</td><td class="n">≥ 95%</td></tr>
+            <tr><td>TL L/T &gt; 10일 비율</td><td class="n up">26.05 : 85.9% / 26.06 : 51.0%</td><td class="n" style="color:var(--blue);font-weight:700">≤ 5%</td><td class="n" style="color:var(--blue);font-weight:700">≤ 2%</td><td class="n">&lt; 3%</td></tr>
+            <tr><td>추가 비용 청구</td><td class="n up">발생 중</td><td class="n" style="color:var(--blue);font-weight:700">0건</td><td class="n" style="color:var(--blue);font-weight:700">0건</td><td class="n">0건</td></tr>
+            <tr><td>주간 배차 가능 대수</td><td class="n">미확인</td><td class="n" style="color:var(--blue);font-weight:700">주 30대+ 확약</td><td class="n" style="color:var(--blue);font-weight:700">주 40대+</td><td class="n">주 30~50대</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="cols c-3" style="height:auto;margin-top:14px;">
+        <div class="fc" style="padding:10px 13px;">
+          <div class="ti" style="font-size:12px;">측정 체계</div>
+          <ul class="bl"><li>주간 KPI 보고 체계 즉시 가동 — 배차 OTR·주간 처리 대수 신규 측정 항목 추가</li></ul>
+        </div>
+        <div class="fc c" style="padding:10px 13px;">
+          <div class="ti" style="font-size:12px;">계약 연계</div>
+          <ul class="bl"><li>SLA 미달 시 Penalty 조항 연동 — 목표 미달성 시 정량 페널티 산정 근거로 활용</li></ul>
+        </div>
+        <div class="fc d" style="padding:10px 13px;">
+          <div class="ti" style="font-size:12px;">가시성</div>
+          <ul class="bl"><li>TMS 연계 실시간 배차 가시성 확보 시 KPI 자동 집계 전환(중기 과제)</li></ul>
+        </div>
+      </div>
+    </div>
+    <div class="brand">LGE INTERNAL USE ONLY</div><div class="pg">06 / 08</div>
+  </section>
+
+  <!-- ================= 7 : FNS 요청 ================= -->
+  <section class="slide">
+    <div class="hd">
+      <div><div class="eyebrow">ACTION REQUEST</div><h1>FNS 확인 및 <span class="sub">요청 사항 (포워더 경유)</span></h1></div>
+      <div class="meta">부품기획팀 | 2026.07</div>
+    </div>
+    <div class="body">
+      <div class="panel fill" style="justify-content:space-between;">
+        <div class="rq">
+          <span class="tag">즉시</span>
+          <div class="ct">
+            <div class="h">01 &nbsp;|&nbsp; 주간 배차 가능 최대 대수 서면 확약</div>
+            <ul class="bl">
+              <li>실제 주간 처리 가능 컨테이너 수(트레일러 가용 × 운행 횟수) 제출 요구</li>
+              <li>2026.05 피크 기준 주 54대 필요 vs 실제 미달 → <b>불일치 원인 해명</b></li>
+              <li>미이행 시 <b>Penalty 조항 계약 삽입</b></li>
+            </ul>
+          </div>
+        </div>
+        <div class="rq">
+          <span class="tag">즉시</span>
+          <div class="ct">
+            <div class="h">02 &nbsp;|&nbsp; Drayage → T/L 최대 대기 기한 SLA 설정</div>
+            <ul class="bl">
+              <li>Drayage 완료 후 T/L 개시까지 <b>최대 5영업일 이내 보장</b></li>
+              <li>현 평균 4.8일이나 Max 27일은 구조적 미준수 → Penalty 명문화</li>
+            </ul>
+          </div>
+        </div>
+        <div class="rq">
+          <span class="tag w">1주 내</span>
+          <div class="ct">
+            <div class="h">03 &nbsp;|&nbsp; 2026.05~06월 비정상 지연 원인 보고서 제출</div>
+            <ul class="bl">
+              <li>건당 평균 14.8일 지연 원인(트레일러 부족 · 드라이버 부재 · 운임 협상) 분석</li>
+              <li><b>원인별 재발 방지책 포함, 2주 내 제출 기한 명시</b></li>
+            </ul>
+          </div>
+        </div>
+        <div class="rq">
+          <span class="tag w">1주 내</span>
+          <div class="ct">
+            <div class="h">04 &nbsp;|&nbsp; 추가 Surcharge 청구 근거 제출 및 지급 보류</div>
+            <ul class="bl">
+              <li>DOE Diesel Index 기준 변동률, 계약서 Clause 명시 여부 확인</li>
+              <li>근거 불충분 시 지급 보류 → 법무 검토 후 조건부 Cap 설정, 재계약 연계 (<b>계약형태 재검토</b>)</li>
+            </ul>
+          </div>
+        </div>
+        <div class="rq">
+          <span class="tag w">2주 내</span>
+          <div class="ct">
+            <div class="h">05 &nbsp;|&nbsp; 대체 Carrier 견적 확보 및 Dual-Vendor 전환 협상</div>
+            <ul class="bl">
+              <li>SAV→HSV 대체 Inland Carrier 최소 2개社 견적 2주 내 제출</li>
+              <li>FNS 단독(Single-Vendor) 구조 → <b>Dual-Vendor(FNS 70 : 신규 30)</b> 전환</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="brand">LGE INTERNAL USE ONLY</div><div class="pg">07 / 08</div>
+  </section>
+
+  <!-- ================= 8 : Action Plan / 결론 ================= -->
+  <section class="slide">
+    <div class="hd">
+      <div><div class="eyebrow">ROADMAP &amp; CONCLUSION</div><h1>개선 Action Plan 및 <span class="sub">결론</span></h1></div>
+      <div class="meta">부품기획팀 | 2026.07</div>
+    </div>
+    <div class="body" style="display:flex;flex-direction:column;gap:15px;">
+      <div>
+        <div class="sec-t">단계별 Action Plan</div>
+        <div class="tl">
+          <div class="st"><div class="hh"><div class="a">즉시</div><div class="b">Week 1~2</div></div>
+            <div class="bb">
+              <div>• FNS 배차 최대 대수 확약 문서 요청</div>
+              <div>• Drayage→T/L SLA 5일 이내 명문화</div>
+              <div>• 2026.05~06 지연 원인 보고서 제출 요구</div>
+              <div>• 추가 Surcharge 지급 보류 · 법무 검토</div>
+            </div></div>
+          <div class="st"><div class="hh"><div class="a">단기</div><div class="b">1~3개월</div></div>
+            <div class="bb">
+              <div>• SLA 재계약 : 배차 보장 · Penalty 조항</div>
+              <div>• Dual-Vendor 협상 (FNS 70 : 신규 30)</div>
+              <div>• 주간 KPI 보고 체계 즉시 가동</div>
+              <div>• 유가 Fuel Clause Cap 재협상 완료</div>
+            </div></div>
+          <div class="st"><div class="hh"><div class="a">중기</div><div class="b">3~6개월</div></div>
+            <div class="bb">
+              <div>• 총 Inland L/T ≤ 7일 달성 목표</div>
+              <div>• TMS 연계 실시간 배차 가시성 확보</div>
+              <div>• FNS 배차 OTR ≥ 95% 달성</div>
+              <div>• 항공 전환 비용 귀속 원칙 문서화</div>
+            </div></div>
+          <div class="st"><div class="hh"><div class="a">목표</div><div class="b">6~12개월</div></div>
+            <div class="bb">
+              <div>• TL L/T ≤ 3일 안정화</div>
+              <div>• 총 Inland L/T ≤ 7일 유지</div>
+              <div>• TL &gt; 10일 비율 ≤ 2%</div>
+              <div>• 추가 비용 청구 0건</div>
+            </div></div>
+        </div>
+      </div>
+      <div>
+        <div class="sec-t">기대 효과</div>
+        <div class="ef">
+          <div class="e"><div class="k">TL L/T 평균</div><div class="p">4.8일</div><div class="ar">▼</div><div class="q">≤ 3일</div></div>
+          <div class="e"><div class="k">총 Inland L/T</div><div class="p">9.97일</div><div class="ar">▼</div><div class="q">≤ 7일</div></div>
+          <div class="e"><div class="k">TL &gt; 10일 비율</div><div class="p">85.9% <span style="font-size:10px;font-weight:400">(26.05)</span></div><div class="ar">▼</div><div class="q">≤ 2%</div></div>
+          <div class="e"><div class="k">추가 비용 청구</div><div class="p">계속 발생</div><div class="ar">▼</div><div class="q">0건</div></div>
+          <div class="e"><div class="k">항공 전환 (Sea 지연 귀책)</div><div class="p" style="font-size:13px">비용 귀속 불명확</div><div class="ar">▶</div><div class="q" style="font-size:13px;color:var(--blue)">귀속 명확화</div></div>
+        </div>
+      </div>
+      <div class="concl">
+        <b>결론</b> &nbsp; 2026.05~06 TL L/T 이상 급등(최대 27일)은 FNS의 <b>의도적 배차 제한</b>으로 판단됨.
+        Port→Drayage 지연(3.84일)은 Savannah GPA 혼잡의 영향이나, <b>TL L/T CV 97.2%</b>는 구조적 계약 공백의 결과임.<br>
+        단기 우선 조치 : ① 배차 대수 확약 &nbsp;② Drayage→T/L SLA 5일 이내 &nbsp;③ 대체 벤더 확보를 통한 협상 레버리지 확보
+        → <span style="color:var(--green);font-weight:700">총 Inland L/T 10일 → 7일 이내 목표 달성 가능</span>
+      </div>
+    </div>
+    <div class="brand">LGE INTERNAL USE ONLY</div><div class="pg">08 / 08</div>
+  </section>
+
+  </div><!-- /stage -->
+</div><!-- /viewport -->
+
+<div id="hint">← → 방향키 · Space · 클릭으로 이동 &nbsp;|&nbsp; F 전체화면</div>
+<div id="nav">
+  <button id="prev" aria-label="이전 슬라이드">‹</button>
+  <span class="ct"><b id="cur">1</b> / <span id="tot">8</span></span>
+  <button id="next" aria-label="다음 슬라이드">›</button>
+</div>
+
+<script>
+/* ============ 1. 스케일 : 1280x720 무대를 화면에 맞춤 ============ */
+const stage = document.getElementById('stage');
+function fit(){
+  const s = Math.min(window.innerWidth/1280, window.innerHeight/720) * 0.95;
+  stage.style.transform = `translate(-50%,-50%) scale(${s})`;
+}
+window.addEventListener('resize', fit); fit();
+
+/* ============ 2. 슬라이드 네비게이션 ============ */
+const slides = Array.from(document.querySelectorAll('.slide'));
+const bar = document.getElementById('bar');
+const curEl = document.getElementById('cur');
+document.getElementById('tot').textContent = slides.length;
+let idx = 0;
+
+function show(n){
+  idx = Math.max(0, Math.min(slides.length-1, n));
+  slides.forEach((s,i)=>s.classList.toggle('active', i===idx));
+  curEl.textContent = idx+1;
+  bar.style.width = ((idx+1)/slides.length*100) + '%';
+  slides[idx].appendChild(bar);          // 진행바를 현재 슬라이드로 이동
+  document.getElementById('prev').disabled = (idx===0);
+  document.getElementById('next').disabled = (idx===slides.length-1);
+  location.hash = 'p' + (idx+1);
+}
+const nextS = ()=>show(idx+1);
+const prevS = ()=>show(idx-1);
+
+document.addEventListener('keydown', e=>{
+  switch(e.key){
+    case 'ArrowRight': case 'ArrowDown': case 'PageDown': case ' ':
+      e.preventDefault(); nextS(); break;
+    case 'ArrowLeft': case 'ArrowUp': case 'PageUp':
+      e.preventDefault(); prevS(); break;
+    case 'Home': e.preventDefault(); show(0); break;
+    case 'End':  e.preventDefault(); show(slides.length-1); break;
+    case 'f': case 'F':
+      if(document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen();
+      break;
+  }
+});
+document.getElementById('next').addEventListener('click', e=>{e.stopPropagation(); nextS();});
+document.getElementById('prev').addEventListener('click', e=>{e.stopPropagation(); prevS();});
+document.getElementById('viewport').addEventListener('click', e=>{
+  (e.clientX < window.innerWidth/2 ? prevS : nextS)();
+});
+let tx=null;
+document.addEventListener('touchstart', e=>{tx=e.changedTouches[0].clientX;}, {passive:true});
+document.addEventListener('touchend', e=>{
+  if(tx===null) return;
+  const d = e.changedTouches[0].clientX - tx;
+  if(Math.abs(d)>50){ d<0 ? nextS() : prevS(); }
+  tx=null;
+}, {passive:true});
+
+/* ============ 3. SVG 차트 렌더러 (외부 라이브러리 불필요) ============ */
+const NS='http://www.w3.org/2000/svg';
+const el=(t,a)=>{const n=document.createElementNS(NS,t);for(const k in a)n.setAttribute(k,a[k]);return n;};
+function txt(x,y,s,o={}){
+  const t=el('text',{x,y,'font-size':o.fs||10,fill:o.c||'#9E9E9E',
+    'text-anchor':o.a||'middle','font-weight':o.w||400,'font-family':'inherit'});
+  t.textContent=s; return t;
+}
+function frame(host,W,H){
+  const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,preserveAspectRatio:'none'});
+  host.innerHTML=''; host.appendChild(svg); return svg;
+}
+
+/* --- 3-1. 라인 차트 : 월별 TL L/T 추이 --- */
+(function(){
+  const host=document.getElementById('ch-line');
+  const W=560,H=280,L=34,R=10,T=14,B=32;
+  const labels=['25-02','25-03','25-04','25-05','25-06','25-07','25-08','25-09','25-10',
+                '25-11','25-12','26-01','26-02','26-03','26-04','26-05','26-06','26-07'];
+  const tl=[1.82,3.12,3.92,2.41,2.82,2.18,2.55,2.67,2.04,2.59,4.20,2.80,2.00,3.18,6.18,14.78,11.02,2.62];
+  const pd=[3.55,4.93,4.79,3.63,3.53,2.23,2.42,2.84,2.18,2.90,4.37,3.95,5.28,3.95,4.23,4.99,4.66,4.29];
+  const max=16, svg=frame(host,W,H);
+  const x=i=>L+i*(W-L-R)/(labels.length-1), y=v=>H-B-(v/max)*(H-T-B);
+  for(let g=0;g<=16;g+=4){
+    svg.appendChild(el('line',{x1:L,x2:W-R,y1:y(g),y2:y(g),stroke:'#EFEFEF','stroke-width':1}));
+    svg.appendChild(txt(L-7,y(g)+3.5,g,{a:'end',fs:9}));
+  }
+  svg.appendChild(el('rect',{x:x(14)-6,y:T,width:x(16)-x(14)+12,height:H-T-B,fill:'#C10933',opacity:.06}));
+  svg.appendChild(txt((x(14)+x(16))/2,T+11,'이상 급등',{c:'#C10933',fs:9,w:700}));
+  const path=d=>d.map((v,i)=>(i?'L':'M')+x(i)+' '+y(v)).join(' ');
+  svg.appendChild(el('path',{d:path(pd),fill:'none',stroke:'#1A4F8A','stroke-width':1.8,'stroke-linejoin':'round'}));
+  svg.appendChild(el('path',{d:path(tl),fill:'none',stroke:'#C10933','stroke-width':2.4,'stroke-linejoin':'round'}));
+  pd.forEach((v,i)=>svg.appendChild(el('circle',{cx:x(i),cy:y(v),r:2,fill:'#1A4F8A'})));
+  tl.forEach((v,i)=>{
+    const big=v>6;
+    svg.appendChild(el('circle',{cx:x(i),cy:y(v),r:big?3.4:2.4,fill:'#C10933'}));
+    if(big) svg.appendChild(txt(x(i),y(v)-8,v.toFixed(1),{c:'#C10933',fs:9.5,w:700}));
+  });
+  labels.forEach((s,i)=>{ if(i%2===0||i>=14) svg.appendChild(txt(x(i),H-11,s,{fs:8.5})); });
+})();
+
+/* --- 3-2. 누적 막대 : 구간별 L/T 기여도 --- */
+(function(){
+  const host=document.getElementById('ch-stack');
+  const W=520,H=300,L=32,R=10,T=16,B=34;
+  const labels=['25-02','25-04','25-07','25-10','25-12','26-01','26-04','26-05','26-06','26-07'];
+  const pd=[3.6,4.8,2.2,2.2,4.4,4.0,4.2,5.0,4.7,4.3];
+  const tl=[1.8,3.9,2.2,2.0,4.2,2.8,6.2,14.8,11.0,2.6];
+  const dv=[1.0,1.4,1.3,1.2,1.3,1.6,1.2,1.2,1.1,1.4];
+  const max=22, svg=frame(host,W,H);
+  const bw=(W-L-R)/labels.length, y=v=>H-B-(v/max)*(H-T-B);
+  for(let g=0;g<=20;g+=5){
+    svg.appendChild(el('line',{x1:L,x2:W-R,y1:y(g),y2:y(g),stroke:'#EFEFEF','stroke-width':1}));
+    svg.appendChild(txt(L-7,y(g)+3.5,g,{a:'end',fs:9}));
+  }
+  labels.forEach((s,i)=>{
+    const cx=L+i*bw+bw/2, w=bw*0.56, x0=cx-w/2;
+    let acc=0;
+    [[pd[i],'#1A4F8A'],[tl[i],'#C10933'],[dv[i],'#E8A9B8']].forEach(([v,c])=>{
+      svg.appendChild(el('rect',{x:x0,y:y(acc+v),width:w,height:Math.max(y(acc)-y(acc+v),0.5),fill:c}));
+      acc+=v;
+    });
+    const tot=(pd[i]+tl[i]+dv[i]).toFixed(1);
+    svg.appendChild(txt(cx,y(acc)-6,tot,{c:acc>15?'#C10933':'#5C5C5C',fs:9.5,w:700}));
+    svg.appendChild(txt(cx,H-12,s,{fs:9}));
+  });
+  svg.appendChild(el('line',{x1:L,x2:W-R,y1:y(10),y2:y(10),stroke:'#1A7340','stroke-width':1.2,'stroke-dasharray':'5 4'}));
+  svg.appendChild(txt(W-R-2,y(10)-5,'목표 10일',{a:'end',c:'#1A7340',fs:9,w:700}));
+})();
+
+/* --- 3-3. 막대 차트 : 배차 요일 패턴 --- */
+(function(){
+  const host=document.getElementById('ch-dow');
+  const W=460,H=250,L=30,R=12,T=22,B=30;
+  const labels=['월','화','수','목','금','토'];
+  const vals=[212,256,244,203,144,56];
+  const max=280, svg=frame(host,W,H);
+  const bw=(W-L-R)/labels.length, y=v=>H-B-(v/max)*(H-T-B);
+  for(let g=0;g<=280;g+=70){
+    svg.appendChild(el('line',{x1:L,x2:W-R,y1:y(g),y2:y(g),stroke:'#EFEFEF','stroke-width':1}));
+    svg.appendChild(txt(L-6,y(g)+3.5,g,{a:'end',fs:9}));
+  }
+  labels.forEach((s,i)=>{
+    const cx=L+i*bw+bw/2, w=bw*0.5, v=vals[i];
+    const peak=(i>=1&&i<=2), low=(i>=4);
+    svg.appendChild(el('rect',{x:cx-w/2,y:y(v),width:w,height:H-B-y(v),
+      fill: peak?'#C10933' : low?'#D9D9D9' : '#E8A9B8', rx:2}));
+    svg.appendChild(txt(cx,y(v)-6,v,{c:peak?'#C10933':'#5C5C5C',fs:10,w:700}));
+    svg.appendChild(txt(cx,H-11,s,{fs:10.5,c:'#5C5C5C',w:peak?700:400}));
+  });
+  svg.appendChild(txt(L+(W-L-R)*0.30,T-6,'주초 집중',{c:'#C10933',fs:9,w:700}));
+  svg.appendChild(txt(L+(W-L-R)*0.80,T-6,'금·토 배차 회피',{c:'#9E9E9E',fs:9,w:700}));
+})();
+
+/* ============ 4. 진입 시 해시 복원 ============ */
+const m = location.hash.match(/^#p(\d+)$/);
+show(m ? parseInt(m[1],10)-1 : 0);
+</script>
+</body>
+</html>
